@@ -1,0 +1,39 @@
+[DEFAULT]
+# Ban duration (1 hour default, 24h for repeat offenders)
+bantime = 1h
+findtime = 10m
+maxretry = 5
+
+# Ignore localhost
+ignoreip = 127.0.0.1/8 ::1
+
+# Email notifications (optional)
+# destemail = admin@yourdomain.com
+# sender = fail2ban@yourdomain.com
+# mta = sendmail
+# action = %(action_mwl)s
+
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 3
+bantime = 24h
+
+# Uncomment if using nginx directly (not via Docker)
+# [nginx-http-auth]
+# enabled = true
+# port = http,https
+# filter = nginx-http-auth
+# logpath = /var/log/nginx/error.log
+# maxretry = 3
+
+# Uncomment for WordPress brute force protection
+# [wordpress]
+# enabled = true
+# port = http,https
+# filter = wordpress
+# logpath = /var/log/nginx/access.log
+# maxretry = 5
+# bantime = 24h

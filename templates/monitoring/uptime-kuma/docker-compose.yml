@@ -1,0 +1,26 @@
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: unless-stopped
+    volumes:
+      - data:/app/data
+    mem_limit: 256m
+    mem_reservation: 128m
+    labels:
+      - "traefik.enable=true"
+      # Router - değiştirin: uptime-dev.example.com -> uptime-dev.yourdomain.com
+      - "traefik.http.routers.uptime-kuma.rule=Host(`uptime-dev.example.com`)"
+      - "traefik.http.routers.uptime-kuma.entrypoints=websecure"
+      - "traefik.http.routers.uptime-kuma.tls=true"
+      # Service
+      - "traefik.http.services.uptime-kuma.loadbalancer.server.port=3001"
+    networks:
+      - web
+
+volumes:
+  data:
+
+networks:
+  web:
+    external: true

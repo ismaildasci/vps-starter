@@ -1,0 +1,51 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: your-laravel-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/up"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    volumes:
+      - storage:/var/www/html/storage/app
+      - database:/var/www/html/database
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.your-laravel.rule=Host(`app.yourdomain.com`)"
+      - "traefik.http.routers.your-laravel.entrypoints=websecure"
+      - "traefik.http.routers.your-laravel.tls=true"
+      - "traefik.http.services.your-laravel.loadbalancer.server.port=80"
+    networks:
+      - web
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: your-laravel-queue
+    restart: unless-stopped
+    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+    env_file:
+      - .env
+    volumes:
+      - database:/var/www/html/database
+    networks:
+      - web
+    depends_on:
+      - app
+
+volumes:
+  storage:
+  database:
+
+networks:
+  web:
+    external: true

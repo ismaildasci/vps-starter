@@ -1,0 +1,26 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    mem_limit: 256m
+    mem_reservation: 64m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - web
+
+volumes:
+  data:
+
+networks:
+  web:
+    external: true

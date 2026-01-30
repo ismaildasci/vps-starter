@@ -1,0 +1,76 @@
+title: "Dev Dashboard"
+subtitle: "Your Project Name"
+logo: "logo.png"
+
+header: true
+footer: false
+
+defaults:
+  layout: columns
+  colorTheme: auto
+
+theme: default
+colors:
+  light:
+    highlight-primary: "#3367d6"
+    highlight-secondary: "#4285f4"
+    highlight-hover: "#5a95f5"
+    background: "#f5f5f5"
+    card-background: "#ffffff"
+    text: "#363636"
+    text-header: "#ffffff"
+    text-title: "#303030"
+    text-subtitle: "#424242"
+    card-shadow: rgba(0, 0, 0, 0.1)
+    link: "#3273dc"
+    link-hover: "#363636"
+  dark:
+    highlight-primary: "#3367d6"
+    highlight-secondary: "#4285f4"
+    highlight-hover: "#5a95f5"
+    background: "#131313"
+    card-background: "#2b2b2b"
+    text: "#eaeaea"
+    text-header: "#ffffff"
+    text-title: "#fafafa"
+    text-subtitle: "#f5f5f5"
+    card-shadow: rgba(0, 0, 0, 0.4)
+    link: "#3273dc"
+    link-hover: "#ffdd57"
+
+services:
+  - name: "Monitoring"
+    icon: "fas fa-chart-line"
+    items:
+      - name: "Grafana"
+        logo: "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/grafana.png"
+        subtitle: "Metrics & Dashboards"
+        url: "https://grafana-dev.example.com"
+        target: "_blank"
+
+      - name: "Prometheus"
+        logo: "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/prometheus.png"
+        subtitle: "Time Series Database"
+        url: "https://prometheus-dev.example.com"
+        target: "_blank"
+
+      - name: "Uptime Kuma"
+        logo: "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/uptime-kuma.png"
+        subtitle: "Status Monitoring"
+        url: "https://uptime-dev.example.com"
+        target: "_blank"
+
+  - name: "Infrastructure"
+    icon: "fas fa-server"
+    items:
+      - name: "Portainer"
+        logo: "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/portainer.png"
+        subtitle: "Docker Management"
+        url: "https://portainer-dev.example.com"
+        target: "_blank"
+
+      - name: "Traefik"
+        logo: "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/traefik.png"
+        subtitle: "Reverse Proxy"
+        url: "https://traefik-dev.example.com"
+        target: "_blank"

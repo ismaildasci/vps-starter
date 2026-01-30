@@ -1,0 +1,25 @@
+services:
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    labels:
+      - "traefik.enable=true"
+      # Router - değiştirin: portainer-dev.example.com -> portainer-dev.yourdomain.com
+      - "traefik.http.routers.portainer.rule=Host(`portainer-dev.example.com`)"
+      - "traefik.http.routers.portainer.entrypoints=websecure"
+      - "traefik.http.routers.portainer.tls=true"
+      # Service
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+    networks:
+      - web
+
+volumes:
+  portainer_data:
+
+networks:
+  web:
+    external: true

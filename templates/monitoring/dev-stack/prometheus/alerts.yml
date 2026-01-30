@@ -1,0 +1,144 @@
+groups:
+  - name: host
+    rules:
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is above 80% for 5 minutes (current: {{ $value | printf \"%.1f\" }}%)"
+
+      - alert: CriticalCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is above 95% (current: {{ $value | printf \"%.1f\" }}%)"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is above 80% (current: {{ $value | printf \"%.1f\" }}%)"
+
+      - alert: CriticalMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical memory usage on {{ $labels.instance }}"
+          description: "Memory usage is above 95% (current: {{ $value | printf \"%.1f\" }}%)"
+
+      # Low disk space
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Disk space is below 20% (available: {{ $value | printf \"%.1f\" }}%)"
+
+      - alert: CriticalDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 10
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical disk space on {{ $labels.instance }}"
+          description: "Disk space is below 10% (available: {{ $value | printf \"%.1f\" }}%)"
+
+  - name: containers
+    rules:
+      # Container down
+      - alert: ContainerDown
+        expr: absent(container_last_seen{name=~".+"})
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container {{ $labels.name }} is down"
+          description: "Container has been down for more than 1 minute"
+
+      # Container high CPU
+      - alert: ContainerHighCPU
+        expr: (sum(rate(container_cpu_usage_seconds_total{name!=""}[3m])) BY (name) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} high CPU"
+          description: "Container CPU usage is above 80% (current: {{ $value | printf \"%.1f\" }}%)"
+
+      # Container high memory
+      - alert: ContainerHighMemory
+        expr: (container_memory_usage_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""} * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} high memory"
+          description: "Container memory usage is above 80% (current: {{ $value | printf \"%.1f\" }}%)"
+
+      # Container restart
+      - alert: ContainerRestarted
+        expr: increase(container_restart_count{name!=""}[1h]) > 3
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} restarting"
+          description: "Container has restarted {{ $value }} times in the last hour"
+
+  - name: traefik
+    rules:
+      # Traefik down
+      - alert: TraefikDown
+        expr: absent(traefik_config_reloads_total)
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Traefik is down"
+          description: "Traefik has been down for more than 1 minute"
+
+      # High error rate
+      - alert: TraefikHighErrorRate
+        expr: sum(rate(traefik_entrypoint_requests_total{code=~"5.."}[5m])) / sum(rate(traefik_entrypoint_requests_total[5m])) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on Traefik"
+          description: "Error rate is above 5% (current: {{ $value | printf \"%.1f\" }}%)"
+
+  - name: services
+    rules:
+      # Prometheus down
+      - alert: PrometheusDown
+        expr: absent(up{job="prometheus"})
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus is down"
+          description: "Prometheus has been down for more than 1 minute"
+
+      # Grafana down
+      - alert: GrafanaDown
+        expr: absent(up{job="grafana"})
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Grafana is down"
+          description: "Grafana has been down for more than 1 minute"

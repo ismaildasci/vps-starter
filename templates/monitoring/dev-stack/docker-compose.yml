@@ -1,0 +1,337 @@
+# Full Dev Monitoring Stack
+# Homer + Grafana + Prometheus + Portainer + Loki + Alertmanager
+# Node Exporter + cAdvisor for host/container metrics
+
+services:
+  # ============================================
+  # DASHBOARD & MANAGEMENT
+  # ============================================
+  homer:
+    image: b4bz/homer:latest
+    container_name: homer
+    restart: unless-stopped
+    volumes:
+      - ./homer/assets:/www/assets
+    environment:
+      - INIT_ASSETS=1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.homer.rule=Host(`${HOMER_DOMAIN:-dev.example.com}`)"
+      - "traefik.http.routers.homer.entrypoints=websecure"
+      - "traefik.http.routers.homer.tls=true"
+      - "traefik.http.routers.homer.middlewares=secure@file"
+      - "traefik.http.services.homer.loadbalancer.server.port=8080"
+    networks:
+      - web
+    # Security Hardening
+    mem_limit: 64m
+    mem_reservation: 32m
+    cpus: 0.25
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portainer.rule=Host(`${PORTAINER_DOMAIN:-portainer-dev.example.com}`)"
+      - "traefik.http.routers.portainer.entrypoints=websecure"
+      - "traefik.http.routers.portainer.tls=true"
+      - "traefik.http.routers.portainer.middlewares=secure@file"
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+    networks:
+      - web
+    # Security Hardening
+    mem_limit: 256m
+    mem_reservation: 128m
+    cpus: 0.5
+    security_opt:
+      - no-new-privileges:true
+
+  # ============================================
+  # METRICS & MONITORING
+  # ============================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    user: "65534:65534"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=15d'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`${PROMETHEUS_DOMAIN:-prometheus-dev.example.com}`)"
+      - "traefik.http.routers.prometheus.entrypoints=websecure"
+      - "traefik.http.routers.prometheus.tls=true"
+      - "traefik.http.routers.prometheus.middlewares=secure@file"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+    networks:
+      - web
+      - monitoring
+    # Security Hardening
+    mem_limit: 512m
+    mem_reservation: 256m
+    cpus: 0.5
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    user: "472:472"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-changeme}
+      - GF_SERVER_ROOT_URL=https://${GRAFANA_DOMAIN:-grafana-dev.example.com}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`${GRAFANA_DOMAIN:-grafana-dev.example.com}`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.routers.grafana.middlewares=secure@file"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    networks:
+      - web
+      - monitoring
+    # Security Hardening
+    mem_limit: 256m
+    mem_reservation: 128m
+    cpus: 0.5
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Node Exporter - Host metrics (CPU, RAM, Disk)
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - monitoring
+    # Security Hardening
+    mem_limit: 64m
+    mem_reservation: 32m
+    cpus: 0.25
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9100/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # cAdvisor - Container metrics
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - monitoring
+    # Security Hardening
+    mem_limit: 128m
+    mem_reservation: 64m
+    cpus: 0.25
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # LOG AGGREGATION
+  # ============================================
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki/config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    networks:
+      - monitoring
+    # Security Hardening
+    mem_limit: 256m
+    mem_reservation: 128m
+    cpus: 0.5
+    security_opt:
+      - no-new-privileges:true
+    # Loki doesn't have wget/curl
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'healthy'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./promtail/config.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ${TRAEFIK_LOGS_PATH:-/home/deploy/traefik/logs}:/traefik-logs:ro
+    networks:
+      - monitoring
+    # Security Hardening
+    mem_limit: 128m
+    mem_reservation: 64m
+    cpus: 0.25
+    security_opt:
+      - no-new-privileges:true
+
+  # ============================================
+  # ALERTING
+  # ============================================
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alertmanager.rule=Host(`${ALERTMANAGER_DOMAIN:-alerts-dev.example.com}`)"
+      - "traefik.http.routers.alertmanager.entrypoints=websecure"
+      - "traefik.http.routers.alertmanager.tls=true"
+      - "traefik.http.routers.alertmanager.middlewares=secure@file"
+      - "traefik.http.services.alertmanager.loadbalancer.server.port=9093"
+    networks:
+      - web
+      - monitoring
+    # Security Hardening
+    mem_limit: 64m
+    mem_reservation: 32m
+    cpus: 0.25
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # TELEGRAM BOT (ChatOps)
+  # ============================================
+  telegram-bot:
+    build:
+      context: ./telegram-bot
+      dockerfile: Dockerfile
+    container_name: telegram-bot
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - WEBHOOK_PORT=5001
+      - ALERTMANAGER_URL=http://alertmanager:9093
+      - PROMETHEUS_URL=http://prometheus:9090
+      - GRAFANA_URL=https://${GRAFANA_DOMAIN:-grafana-dev.example.com}
+      - TIMEZONE=${TIMEZONE:-UTC}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - monitoring
+    mem_limit: 128m
+    mem_reservation: 64m
+    cpus: 0.25
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ============================================
+  # BLACKBOX EXPORTER (HTTP/SSL Probing)
+  # ============================================
+  blackbox-exporter:
+    image: prom/blackbox-exporter:latest
+    container_name: blackbox-exporter
+    restart: unless-stopped
+    command:
+      - '--config.file=/config/blackbox.yml'
+    volumes:
+      - ./blackbox/blackbox.yml:/config/blackbox.yml:ro
+    networks:
+      - monitoring
+      - web
+    mem_limit: 64m
+    mem_reservation: 32m
+    cpus: 0.25
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9115/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  portainer_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  alertmanager_data:
+
+networks:
+  web:
+    external: true
+  monitoring:
+    external: true

@@ -1,0 +1,29 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: your-nextjs-app
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    mem_limit: 512m
+    mem_reservation: 128m
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nextjs-app.rule=Host(`yourdomain.com`)"
+      - "traefik.http.routers.nextjs-app.entrypoints=websecure"
+      - "traefik.http.routers.nextjs-app.tls=true"
+      - "traefik.http.services.nextjs-app.loadbalancer.server.port=3000"
+    networks:
+      - web
+
+networks:
+  web:
+    external: true

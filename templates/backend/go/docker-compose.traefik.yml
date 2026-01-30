@@ -1,0 +1,29 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: your-go-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    mem_limit: 256m
+    mem_reservation: 64m
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.go-api.rule=Host(`api.yourdomain.com`)"
+      - "traefik.http.routers.go-api.entrypoints=websecure"
+      - "traefik.http.routers.go-api.tls=true"
+      - "traefik.http.services.go-api.loadbalancer.server.port=8080"
+    networks:
+      - web
+
+networks:
+  web:
+    external: true

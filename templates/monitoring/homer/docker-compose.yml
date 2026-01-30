@@ -1,0 +1,23 @@
+services:
+  homer:
+    image: b4bz/homer:latest
+    container_name: homer
+    restart: unless-stopped
+    volumes:
+      - ./assets:/www/assets
+    environment:
+      - INIT_ASSETS=1
+    labels:
+      - "traefik.enable=true"
+      # Router - değiştirin: dev.example.com -> dev.yourdomain.com
+      - "traefik.http.routers.homer.rule=Host(`dev.example.com`)"
+      - "traefik.http.routers.homer.entrypoints=websecure"
+      - "traefik.http.routers.homer.tls=true"
+      # Service
+      - "traefik.http.services.homer.loadbalancer.server.port=8080"
+    networks:
+      - web
+
+networks:
+  web:
+    external: true

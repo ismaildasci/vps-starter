@@ -1,0 +1,97 @@
+# Dynamic configuration for Traefik
+tls:
+  certificates:
+    - certFile: /certs/yourdomain.com.crt
+      keyFile: /certs/yourdomain.com.key
+
+  # TLS Options - Modern security
+  options:
+    default:
+      minVersion: VersionTLS12
+      cipherSuites:
+        - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
+        - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305
+    modern:
+      minVersion: VersionTLS13
+
+http:
+  middlewares:
+    # Basic Auth (optional)
+    basic-auth:
+      basicAuth:
+        users:
+          - "user:$$apr1$$hash$$here"  # htpasswd -nb user password
+
+    # Security Headers - OWASP recommended
+    security-headers:
+      headers:
+        # HSTS - Force browser to use HTTPS
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        forceSTSHeader: true
+        # XSS and Content Type protection
+        browserXssFilter: true
+        contentTypeNosniff: true
+        # Clickjacking protection
+        frameDeny: true
+        # Referrer Policy
+        referrerPolicy: "strict-origin-when-cross-origin"
+        # Permissions Policy
+        permissionsPolicy: "camera=(), microphone=(), geolocation=(), payment=()"
+        # Custom headers
+        customResponseHeaders:
+          X-Robots-Tag: "noindex, nofollow"
+          server: ""
+
+    # Rate Limiting - DDoS and brute force protection
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+        period: 1s
+
+    # Strict Rate Limit - For login pages
+    rate-limit-strict:
+      rateLimit:
+        average: 10
+        burst: 20
+        period: 1m
+
+    # Gzip/Brotli Compression
+    compress:
+      compress:
+        excludedContentTypes:
+          - text/event-stream
+
+    # CrowdSec Bouncer Middleware (if using CrowdSec)
+    crowdsec:
+      plugin:
+        crowdsec:
+          enabled: true
+          crowdsecLapiHost: crowdsec:8080
+          crowdsecLapiKey: YOUR_CROWDSEC_API_KEY
+          crowdsecMode: live
+          updateIntervalSeconds: 15
+          defaultDecisionSeconds: 60
+          httpTimeoutSeconds: 10
+          crowdsecLapiScheme: http
+
+    # Combined middleware chain - All security features
+    secure:
+      chain:
+        middlewares:
+          - security-headers
+          - rate-limit
+          - compress
+
+    # Secure with CrowdSec (use this when CrowdSec is enabled)
+    secure-crowdsec:
+      chain:
+        middlewares:
+          - security-headers
+          - rate-limit
+          - compress
+          - crowdsec

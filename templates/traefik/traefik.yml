@@ -1,0 +1,36 @@
+api:
+  dashboard: true
+  insecure: false
+
+metrics:
+  prometheus: {}
+
+# CrowdSec Bouncer Plugin (optional - uncomment to enable)
+# experimental:
+#   plugins:
+#     crowdsec:
+#       moduleName: github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
+#       version: v1.3.5
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: web
+  file:
+    filename: /dynamic.yml
+    watch: true
+
+log:
+  level: INFO
+  filePath: /var/log/traefik/traefik.log
+
+accessLog:
+  filePath: /var/log/traefik/access.log
+  bufferingSize: 100

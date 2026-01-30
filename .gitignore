@@ -1,0 +1,36 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+envs/*.env
+!envs/.gitkeep
+!envs/README.md
+
+# Certificates
+*.crt
+*.key
+*.pem
+certs/
+
+# Docker
+docker-compose.override.yml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Node modules (if any examples need them)
+node_modules/
+
+# Vendor (PHP)
+vendor/
