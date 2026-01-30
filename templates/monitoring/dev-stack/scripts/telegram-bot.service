@@ -1,0 +1,26 @@
+# Systemd service file for Telegram Bot
+# This is an OPTIONAL alternative to running the bot as a Docker container
+#
+# Installation:
+# 1. Copy this file to /etc/systemd/system/telegram-bot.service
+# 2. Update the paths below to match your setup
+# 3. Run: sudo systemctl daemon-reload
+# 4. Run: sudo systemctl enable telegram-bot
+# 5. Run: sudo systemctl start telegram-bot
+
+[Unit]
+Description=Telegram System Monitor Bot
+After=network.target docker.service
+
+[Service]
+Type=simple
+User=deploy
+WorkingDirectory=/home/deploy/apps/monitoring/telegram-bot
+ExecStart=/usr/bin/python3 /home/deploy/apps/monitoring/telegram-bot/bot.py
+Restart=always
+RestartSec=10
+Environment="TELEGRAM_BOT_TOKEN="
+Environment="TELEGRAM_CHAT_ID="
+
+[Install]
+WantedBy=multi-user.target
