@@ -68,6 +68,13 @@ scrape_configs:
         labels:
           service: 'traefik'
 
+  # Uptime Kuma - Status monitoring
+  - job_name: 'uptime-kuma'
+    static_configs:
+      - targets: ['uptime-kuma:3001']
+        labels:
+          service: 'uptime-kuma'
+
   # ============================================
   # DATABASE EXPORTERS (optional)
   # ============================================
