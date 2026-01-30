@@ -1,144 +1,520 @@
 groups:
+  # ============================================
+  # HOST ALERTS - Server Resources
+  # ============================================
   - name: host
     rules:
-      # High CPU usage
-      - alert: HighCPUUsage
-        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+      # CPU Alerts
+      - alert: HighCPU
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 70
         for: 5m
         labels:
           severity: warning
+          category: host
         annotations:
-          summary: "High CPU usage on {{ $labels.instance }}"
-          description: "CPU usage is above 80% for 5 minutes (current: {{ $value | printf \"%.1f\" }}%)"
+          summary: "High CPU usage"
+          description: "CPU usage is above 70% for 5 minutes (current: {{ $value | printf \"%.1f\" }}%)"
 
-      - alert: CriticalCPUUsage
-        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+      - alert: CriticalCPU
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
         for: 2m
         labels:
           severity: critical
+          category: host
         annotations:
-          summary: "Critical CPU usage on {{ $labels.instance }}"
-          description: "CPU usage is above 95% (current: {{ $value | printf \"%.1f\" }}%)"
+          summary: "Critical CPU usage"
+          description: "CPU usage is above 90%! Immediate action required. (current: {{ $value | printf \"%.1f\" }}%)"
 
-      # High memory usage
-      - alert: HighMemoryUsage
-        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+      # Memory Alerts
+      - alert: HighMemory
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 75
         for: 5m
         labels:
           severity: warning
+          category: host
         annotations:
-          summary: "High memory usage on {{ $labels.instance }}"
-          description: "Memory usage is above 80% (current: {{ $value | printf \"%.1f\" }}%)"
+          summary: "High memory usage"
+          description: "Memory usage is above 75% (current: {{ $value | printf \"%.1f\" }}%)"
 
-      - alert: CriticalMemoryUsage
-        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 95
+      - alert: CriticalMemory
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
         for: 2m
         labels:
           severity: critical
+          category: host
         annotations:
-          summary: "Critical memory usage on {{ $labels.instance }}"
-          description: "Memory usage is above 95% (current: {{ $value | printf \"%.1f\" }}%)"
+          summary: "Critical memory usage"
+          description: "Memory usage is above 90%! OOM risk. (current: {{ $value | printf \"%.1f\" }}%)"
 
-      # Low disk space
-      - alert: LowDiskSpace
-        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 20
+      # Disk Alerts
+      - alert: LowDisk
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 25
         for: 5m
         labels:
           severity: warning
+          category: host
         annotations:
-          summary: "Low disk space on {{ $labels.instance }}"
-          description: "Disk space is below 20% (available: {{ $value | printf \"%.1f\" }}%)"
+          summary: "Low disk space"
+          description: "Disk space is below 25% (remaining: {{ $value | printf \"%.1f\" }}%)"
 
-      - alert: CriticalDiskSpace
+      - alert: CriticalDisk
         expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 10
         for: 2m
         labels:
           severity: critical
+          category: host
         annotations:
-          summary: "Critical disk space on {{ $labels.instance }}"
-          description: "Disk space is below 10% (available: {{ $value | printf \"%.1f\" }}%)"
+          summary: "Critical disk space"
+          description: "Disk space is below 10%! Immediate cleanup required. (remaining: {{ $value | printf \"%.1f\" }}%)"
 
+      # Load Average
+      - alert: HighLoad
+        expr: node_load5 > 4
+        for: 5m
+        labels:
+          severity: warning
+          category: host
+        annotations:
+          summary: "High system load"
+          description: "5-minute load average is above 4 (current: {{ $value | printf \"%.2f\" }})"
+
+      # Network
+      - alert: HighNetworkTraffic
+        expr: rate(node_network_receive_bytes_total{device!~"lo|docker.*|veth.*"}[5m]) > 100000000
+        for: 5m
+        labels:
+          severity: warning
+          category: host
+        annotations:
+          summary: "High network traffic"
+          description: "High incoming traffic on {{ $labels.device }} ({{ $value | humanize }}B/s)"
+
+  # ============================================
+  # CONTAINER ALERTS - Docker Containers
+  # ============================================
   - name: containers
     rules:
-      # Container down
+      # Container Down - CUSTOMIZE container names for your setup
       - alert: ContainerDown
-        expr: absent(container_last_seen{name=~".+"})
+        expr: |
+          absent(container_last_seen{name=~"app-backend|app-frontend|traefik"})
+          or (time() - container_last_seen{name=~"app-backend|app-frontend|traefik"}) > 60
         for: 1m
         labels:
           severity: critical
+          category: container
         annotations:
-          summary: "Container {{ $labels.name }} is down"
-          description: "Container has been down for more than 1 minute"
+          summary: "Critical container down"
+          description: "{{ $labels.name }} container has been unresponsive for 1 minute!"
 
-      # Container high CPU
+      # Container Restart Loop
+      - alert: ContainerRestartLoop
+        expr: increase(container_restart_count{name!=""}[1h]) > 3
+        labels:
+          severity: warning
+          category: container
+        annotations:
+          summary: "Container restarting frequently"
+          description: "{{ $labels.name }} has restarted {{ $value | printf \"%.0f\" }} times in the last hour"
+
+      # Container High CPU
       - alert: ContainerHighCPU
         expr: (sum(rate(container_cpu_usage_seconds_total{name!=""}[3m])) BY (name) * 100) > 80
         for: 5m
         labels:
           severity: warning
+          category: container
         annotations:
-          summary: "Container {{ $labels.name }} high CPU"
-          description: "Container CPU usage is above 80% (current: {{ $value | printf \"%.1f\" }}%)"
+          summary: "Container high CPU"
+          description: "{{ $labels.name }} is using more than 80% CPU (current: {{ $value | printf \"%.1f\" }}%)"
 
-      # Container high memory
+      # Container High Memory
       - alert: ContainerHighMemory
-        expr: (container_memory_usage_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""} * 100) > 80
+        expr: (container_memory_usage_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""} * 100) > 85
         for: 5m
         labels:
           severity: warning
+          category: container
         annotations:
-          summary: "Container {{ $labels.name }} high memory"
-          description: "Container memory usage is above 80% (current: {{ $value | printf \"%.1f\" }}%)"
+          summary: "Container high memory"
+          description: "{{ $labels.name }} is using 85% of its memory limit"
 
-      # Container restart
-      - alert: ContainerRestarted
-        expr: increase(container_restart_count{name!=""}[1h]) > 3
+      # Container OOM
+      - alert: ContainerOOMKilled
+        expr: increase(container_oom_events_total{name!=""}[5m]) > 0
         labels:
-          severity: warning
+          severity: critical
+          category: container
         annotations:
-          summary: "Container {{ $labels.name }} restarting"
-          description: "Container has restarted {{ $value }} times in the last hour"
+          summary: "Container OOM Kill"
+          description: "{{ $labels.name }} was killed due to out of memory!"
 
+  # ============================================
+  # PROJECT ALERTS - CUSTOMIZE for your projects
+  # Example alerts - modify container names and project names
+  # ============================================
+  - name: projects
+    rules:
+      # Example: Main App
+      - alert: MainAppDown
+        expr: |
+          absent(container_last_seen{name="app-backend"})
+          or absent(container_last_seen{name="app-frontend"})
+        for: 1m
+        labels:
+          severity: critical
+          category: project
+          project: app
+        annotations:
+          summary: "Main App is down"
+          description: "Main App services are not running!"
+
+      - alert: AppDatabaseDown
+        expr: absent(container_last_seen{name="app-postgres"})
+        for: 1m
+        labels:
+          severity: critical
+          category: project
+          project: app
+        annotations:
+          summary: "App Database is down"
+          description: "App PostgreSQL database is not running!"
+
+  # ============================================
+  # TRAEFIK ALERTS - Reverse Proxy
+  # ============================================
   - name: traefik
     rules:
-      # Traefik down
       - alert: TraefikDown
         expr: absent(traefik_config_reloads_total)
         for: 1m
         labels:
           severity: critical
+          category: infrastructure
         annotations:
           summary: "Traefik is down"
-          description: "Traefik has been down for more than 1 minute"
+          description: "Traefik reverse proxy is not running! All sites may be inaccessible."
 
-      # High error rate
-      - alert: TraefikHighErrorRate
-        expr: sum(rate(traefik_entrypoint_requests_total{code=~"5.."}[5m])) / sum(rate(traefik_entrypoint_requests_total[5m])) * 100 > 5
+      - alert: HighErrorRate
+        expr: |
+          (sum(rate(traefik_entrypoint_requests_total{code=~"5.."}[5m]))
+          / sum(rate(traefik_entrypoint_requests_total[5m]))) * 100 > 5
         for: 5m
         labels:
           severity: warning
+          category: infrastructure
         annotations:
-          summary: "High error rate on Traefik"
-          description: "Error rate is above 5% (current: {{ $value | printf \"%.1f\" }}%)"
+          summary: "High HTTP error rate"
+          description: "HTTP 5xx error rate is above 5% (current: {{ $value | printf \"%.1f\" }}%)"
 
-  - name: services
+      - alert: CriticalErrorRate
+        expr: |
+          (sum(rate(traefik_entrypoint_requests_total{code=~"5.."}[5m]))
+          / sum(rate(traefik_entrypoint_requests_total[5m]))) * 100 > 20
+        for: 2m
+        labels:
+          severity: critical
+          category: infrastructure
+        annotations:
+          summary: "Critical HTTP error rate"
+          description: "HTTP 5xx error rate is above 20%! Immediate investigation required."
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(traefik_entrypoint_request_duration_seconds_bucket[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: warning
+          category: infrastructure
+        annotations:
+          summary: "High response time"
+          description: "P95 response time is above 2 seconds"
+
+  # ============================================
+  # MONITORING STACK ALERTS
+  # ============================================
+  - name: monitoring
     rules:
-      # Prometheus down
       - alert: PrometheusDown
         expr: absent(up{job="prometheus"})
         for: 1m
         labels:
           severity: critical
+          category: monitoring
         annotations:
           summary: "Prometheus is down"
-          description: "Prometheus has been down for more than 1 minute"
+          description: "Prometheus monitoring service is not running!"
 
-      # Grafana down
       - alert: GrafanaDown
         expr: absent(up{job="grafana"})
         for: 1m
         labels:
           severity: critical
+          category: monitoring
         annotations:
           summary: "Grafana is down"
-          description: "Grafana has been down for more than 1 minute"
+          description: "Grafana dashboard service is not running!"
+
+      - alert: AlertmanagerDown
+        expr: absent(up{job="alertmanager"})
+        for: 1m
+        labels:
+          severity: critical
+          category: monitoring
+        annotations:
+          summary: "Alertmanager is down"
+          description: "Alertmanager service is not running! Alerts may not be delivered."
+
+      - alert: LokiDown
+        expr: absent(up{job="loki"})
+        for: 2m
+        labels:
+          severity: warning
+          category: monitoring
+        annotations:
+          summary: "Loki is down"
+          description: "Log collection service (Loki) is not responding"
+
+      - alert: UptimeKumaDown
+        expr: absent(up{job="uptime-kuma"})
+        for: 2m
+        labels:
+          severity: warning
+          category: monitoring
+        annotations:
+          summary: "Uptime Kuma is down"
+          description: "Uptime monitoring service is not running"
+
+  # ============================================
+  # SSL/TLS ALERTS (via Blackbox)
+  # ============================================
+  - name: ssl
+    rules:
+      - alert: SSLCertificateExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 14
+        for: 1h
+        labels:
+          severity: warning
+          category: ssl
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "{{ $labels.instance }} SSL certificate expires in less than 14 days"
+
+      - alert: SSLCertificateCritical
+        expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 3
+        for: 30m
+        labels:
+          severity: critical
+          category: ssl
+        annotations:
+          summary: "SSL certificate expiring very soon"
+          description: "{{ $labels.instance }} SSL certificate expires in less than 3 days! Urgent renewal needed."
+
+  # ============================================
+  # WEBSITE AVAILABILITY (via Blackbox)
+  # ============================================
+  - name: availability
+    rules:
+      - alert: WebsiteDown
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "Website is down"
+          description: "{{ $labels.instance }} has been unresponsive for 2 minutes!"
+
+      - alert: WebsiteSlow
+        expr: probe_http_duration_seconds{job="blackbox-http"} > 3
+        for: 5m
+        labels:
+          severity: warning
+          category: availability
+        annotations:
+          summary: "Website responding slowly"
+          description: "{{ $labels.instance }} response time is above 3 seconds"
+
+  # ============================================
+  # DATABASE ALERTS
+  # ============================================
+  - name: database
+    rules:
+      - alert: PostgreSQLDown
+        expr: |
+          absent(container_last_seen{name=~".*postgres.*"})
+        for: 1m
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "{{ $labels.name }} PostgreSQL container is not running!"
+
+      - alert: RedisDown
+        expr: |
+          absent(container_last_seen{name=~".*redis.*"})
+        for: 1m
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "Redis is down"
+          description: "{{ $labels.name }} Redis container is not running!"
+
+  # ============================================
+  # POSTGRESQL EXPORTER ALERTS
+  # ============================================
+  - name: postgres-exporter
+    rules:
+      - alert: PostgreSQLExporterDown
+        expr: absent(up{job="postgres-exporter"})
+        for: 2m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "PostgreSQL Exporter is down"
+          description: "Cannot collect PostgreSQL metrics"
+
+      - alert: PostgreSQLHighConnections
+        expr: pg_stat_activity_count > (pg_settings_max_connections * 0.8)
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "PostgreSQL connection count is high"
+          description: "PostgreSQL connection count exceeded 80% of max ({{ $value }} active connections)"
+
+      - alert: PostgreSQLCriticalConnections
+        expr: pg_stat_activity_count > (pg_settings_max_connections * 0.95)
+        for: 2m
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "PostgreSQL connection count is critical"
+          description: "PostgreSQL connection count exceeded 95% of max! New connections may be rejected."
+
+      - alert: PostgreSQLLowCacheHitRatio
+        expr: (pg_stat_database_blks_hit / (pg_stat_database_blks_hit + pg_stat_database_blks_read)) < 0.9
+        for: 10m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "PostgreSQL cache hit ratio is low"
+          description: "PostgreSQL cache hit ratio is below 90% ({{ $value | printf \"%.2f\" }}). Consider increasing shared_buffers."
+
+      - alert: PostgreSQLDeadlocks
+        expr: increase(pg_stat_database_deadlocks[5m]) > 0
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "PostgreSQL deadlock detected"
+          description: "Deadlock occurred in {{ $labels.datname }} database"
+
+      - alert: PostgreSQLSlowQueries
+        expr: pg_stat_activity_max_tx_duration > 300
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "PostgreSQL long-running query"
+          description: "Query running for more than 5 minutes detected"
+
+  # ============================================
+  # REDIS EXPORTER ALERTS
+  # ============================================
+  - name: redis-exporter
+    rules:
+      - alert: RedisExporterDown
+        expr: absent(up{job="redis-exporter"})
+        for: 2m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "Redis Exporter is down"
+          description: "Cannot collect Redis metrics"
+
+      - alert: RedisHighMemory
+        expr: (redis_memory_used_bytes / redis_memory_max_bytes) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "Redis memory usage is high"
+          description: "Redis memory usage exceeded 80% of maxmemory ({{ $value | printf \"%.1f\" }}%)"
+
+      - alert: RedisCriticalMemory
+        expr: (redis_memory_used_bytes / redis_memory_max_bytes) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "Redis memory usage is critical"
+          description: "Redis memory usage exceeded 95%! Key eviction may be occurring."
+
+      - alert: RedisLowHitRate
+        expr: (redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total)) < 0.8
+        for: 10m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "Redis hit rate is low"
+          description: "Redis cache hit rate is below 80%. Review caching strategy."
+
+      - alert: RedisHighConnectionCount
+        expr: redis_connected_clients > 100
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "Redis connection count is high"
+          description: "More than 100 clients connected to Redis ({{ $value }})"
+
+      - alert: RedisRejectedConnections
+        expr: increase(redis_rejected_connections_total[5m]) > 0
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "Redis rejected connections"
+          description: "Redis is rejecting new connections! Check maxclients limit."
+
+  # ============================================
+  # BACKUP ALERTS
+  # ============================================
+  - name: backup
+    rules:
+      - alert: BackupStale
+        expr: (time() - file_mtime{path="/home/deploy/backups"}) > 86400 * 2
+        for: 1h
+        labels:
+          severity: warning
+          category: backup
+        annotations:
+          summary: "Backup is stale"
+          description: "Last successful backup is older than 2 days. Check backup job."
+
+  # ============================================
+  # DEADMAN SWITCH - Monitoring Health Check
+  # ============================================
+  - name: deadman
+    rules:
+      - alert: DeadManSwitch
+        expr: vector(1)
+        labels:
+          severity: none
+          category: deadman
+        annotations:
+          summary: "Monitoring system is healthy"
+          description: "This alert should always be firing. If it disappears, the monitoring system is down."
