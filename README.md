@@ -1,139 +1,161 @@
-# VPS Docker Traefik Starter
+# VPS Starter
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-24.0+-blue.svg)](https://www.docker.com/)
 [![Traefik](https://img.shields.io/badge/Traefik-v3-24a1c1.svg)](https://traefik.io/)
-[![Ubuntu](https://img.shields.io/badge/Ubuntu-22.04+-E95420.svg)](https://ubuntu.com/)
 
-Production-ready VPS setup with Docker, Traefik, and deployment templates.
+Production-ready VPS setup. Docker, Traefik, SSL, monitoring, security. One script, done.
 
-## Features
+## Architecture
 
-- **Automated Setup** - Single script server configuration
-- **Traefik v3** - Reverse proxy with Cloudflare SSL
-- **Frontend** - Nuxt, Next.js, React, Vue
-- **Backend** - Laravel, NestJS, Go
-- **Databases** - MySQL, PostgreSQL, Redis
-- **Security** - UFW, Fail2ban, CrowdSec, SSH hardening, Container hardening
-- **Monitoring** - Homer, Grafana, Prometheus, Portainer, Uptime Kuma
-- **Scripts** - Backup, env management, GPG encryption
+```
+                                    ┌─────────────────────────────────────────────────────────┐
+                                    │                        VPS                              │
+                                    │                                                         │
+┌──────────┐      ┌─────────┐       │   ┌─────────────────────────────────────────────────┐   │
+│          │      │         │       │   │                   Traefik                       │   │
+│ Internet │─────▶│Cloudflare│──────┼──▶│  - SSL termination (Cloudflare DNS challenge)  │   │
+│          │      │   DNS   │       │   │  - Rate limiting, security headers             │   │
+└──────────┘      └─────────┘       │   │  - Automatic service discovery                 │   │
+                                    │   └──────────────────────┬──────────────────────────┘   │
+                                    │                          │                              │
+                                    │            ┌─────────────┼─────────────┐               │
+                                    │            │             │             │               │
+                                    │            ▼             ▼             ▼               │
+                                    │   ┌─────────────┐ ┌───────────┐ ┌───────────┐         │
+                                    │   │   Nuxt     │ │  Laravel  │ │   Go      │         │
+                                    │   │   Next.js  │ │  NestJS   │ │   API     │         │
+                                    │   │   React    │ │           │ │           │         │
+                                    │   └─────────────┘ └─────┬─────┘ └───────────┘         │
+                                    │                         │                              │
+                                    │                         ▼                              │
+                                    │            ┌────────────────────────┐                  │
+                                    │            │   MySQL │ PostgreSQL  │                  │
+                                    │            │   Redis │              │                  │
+                                    │            └────────────────────────┘                  │
+                                    │                                                         │
+                                    │   ┌─────────────────────────────────────────────────┐   │
+                                    │   │              Monitoring Stack                   │   │
+                                    │   │  Prometheus → Grafana → Alertmanager           │   │
+                                    │   │  Loki → Promtail (logs)                         │   │
+                                    │   │  Homer │ Portainer │ Uptime Kuma               │   │
+                                    │   └─────────────────────────────────────────────────┘   │
+                                    │                                                         │
+                                    │   ┌─────────────────────────────────────────────────┐   │
+                                    │   │              Security Layer                     │   │
+                                    │   │  UFW │ Fail2ban │ CrowdSec │ SSH Hardening     │   │
+                                    │   └─────────────────────────────────────────────────┘   │
+                                    │                                                         │
+                                    └─────────────────────────────────────────────────────────┘
+```
 
 ## Quick Start
 
 ```bash
-# On fresh Ubuntu 22.04+ VPS (as root)
-git clone https://github.com/username/vps-docker-traefik-starter.git
-cd vps-docker-traefik-starter/scripts/setup
+# Fresh Ubuntu 22.04+ VPS (as root)
+git clone https://github.com/ismaildasci/vps-starter.git
+cd vps-starter/scripts/setup
 sudo bash setup.sh deploy 2
 ```
 
-This installs everything: Docker, firewall, fail2ban, swap, aliases.
+Installs Docker, UFW, Fail2ban, swap, aliases. Creates `deploy` user with 2GB swap.
 
-## What Gets Installed
+## What You Get
 
-| Component | Description |
-|-----------|-------------|
+| Component | What it does |
+|-----------|--------------|
 | Docker + Compose | Container runtime |
-| UFW | Firewall (22, 80, 443) |
-| Fail2ban | Brute force protection |
-| Swap | 2GB (configurable) |
-| Aliases | Docker shortcuts |
-| Cron | Auto cleanup jobs |
-
-## Directory Structure
-
-```
-├── scripts/
-│   ├── setup/              # Server setup scripts
-│   │   ├── setup.sh        # Full automated setup
-│   │   ├── 01-user.sh      # Create deploy user
-│   │   ├── 02-packages.sh  # Install packages
-│   │   ├── 03-docker.sh    # Install Docker
-│   │   ├── 04-firewall.sh  # Configure UFW
-│   │   ├── 05-fail2ban.sh  # Configure Fail2ban
-│   │   ├── 06-ssh-hardening.sh
-│   │   ├── 07-verify.sh    # Verify setup
-│   │   ├── 08-extras.sh    # Swap, aliases, cron
-│   │   └── 09-traefik-init.sh
-│   ├── backup.sh           # Volume backups
-│   ├── restore.sh
-│   ├── env-encrypt.sh      # GPG encrypt envs
-│   ├── env-decrypt.sh
-│   └── env-manager.sh
-│
-├── config/
-│   ├── fail2ban/jail.local
-│   ├── ssh/hardening.conf
-│   ├── docker/daemon.json
-│   └── bash/.bash_aliases
-│
-├── templates/
-│   ├── traefik/
-│   ├── frontend/           # nuxt, nextjs, react, vue
-│   ├── backend/            # laravel, nestjs, go
-│   ├── databases/          # mysql, postgresql, redis
-│   ├── monitoring/         # homer, grafana, prometheus, portainer, uptime-kuma, dev-stack
-│   └── security/           # crowdsec
-│
-├── envs/                   # .env file storage
-└── docs/                   # Detailed guides
-```
-
-## Server Layout (After Setup)
-
-```
-/home/deploy/
-├── apps/           # Your projects
-├── traefik/        # Reverse proxy
-├── shared/         # MySQL, Redis
-├── envs/           # .env files (chmod 600)
-├── backups/        # Encrypted backups
-├── scripts/        # Utility scripts
-└── logs/
-```
+| UFW | Firewall (22, 80, 443 only) |
+| Fail2ban | Blocks brute force attacks |
+| SSH Hardening | Key-only, no root login |
+| Swap | Configurable (default 2GB) |
+| Aliases | `dps`, `dcup`, `dclogs`... |
 
 ## Templates
 
-| Template | Stack | Port |
-|----------|-------|------|
-| Nuxt | Nuxt 4, Vue 3 | 3000 |
-| Next.js | Next.js 14+ | 3000 |
-| React | Vite, nginx | 80 |
-| Vue | Vite, nginx | 80 |
-| Laravel | PHP-FPM, nginx | 80 |
-| NestJS | TypeScript | 3000 |
-| Go | Go 1.22 | 8080 |
-| MySQL | 8.0 | 3306 |
-| PostgreSQL | 16 | 5432 |
-| Redis | 7 | 6379 |
+### Frontend
+| Template | Stack |
+|----------|-------|
+| Nuxt | Nuxt 4, Vue 3 |
+| Next.js | Next 14+, React |
+| React | Vite, nginx |
+| Vue | Vite, nginx |
 
-### Monitoring Stack
+### Backend
+| Template | Stack |
+|----------|-------|
+| Laravel | PHP-FPM, nginx |
+| NestJS | TypeScript |
+| Go | Go 1.22 |
 
-| Template | Description | Port |
-|----------|-------------|------|
-| Homer | Dashboard | 8080 |
-| Grafana | Metrics & Dashboards | 3000 |
-| Prometheus | Time Series DB | 9090 |
-| Portainer | Docker Management | 9000 |
-| Uptime Kuma | Status Monitoring | 3001 |
-| dev-stack | All-in-one monitoring | - |
+### Database
+| Template | Version |
+|----------|---------|
+| MySQL | 8.0 |
+| PostgreSQL | 16 |
+| Redis | 7 |
+
+### Monitoring
+| Template | Purpose |
+|----------|---------|
+| Grafana + Prometheus | Metrics & dashboards |
+| Loki + Promtail | Log aggregation |
+| Homer | Dashboard |
+| Portainer | Docker UI |
+| Uptime Kuma | Uptime monitoring |
 
 ### Security
+| Template | Purpose |
+|----------|---------|
+| CrowdSec | Modern IPS with Traefik bouncer |
 
-| Template | Description |
-|----------|-------------|
-| CrowdSec | Modern IPS - Fail2ban alternative with Traefik bouncer |
+## Project Structure
 
-### Container Hardening (Built-in)
+```
+├── scripts/
+│   ├── setup/           # Server setup (run once)
+│   ├── backup.sh        # Volume backups
+│   ├── restore.sh       # Restore backups
+│   └── env-*.sh         # Env management + GPG
+│
+├── config/              # Server configs
+│   ├── fail2ban/
+│   ├── ssh/
+│   └── docker/
+│
+├── templates/           # Copy & deploy
+│   ├── traefik/
+│   ├── frontend/
+│   ├── backend/
+│   ├── databases/
+│   ├── monitoring/
+│   └── security/
+│
+└── docs/                # Guides
+```
+
+## After Setup (Server Layout)
+
+```
+/home/deploy/
+├── apps/        # Your projects go here
+├── traefik/     # Reverse proxy
+├── shared/      # MySQL, Redis (shared)
+├── envs/        # .env files (chmod 600)
+├── backups/     # Encrypted backups
+└── scripts/     # Utilities
+```
+
+## Container Hardening
 
 All templates include:
-- `mem_limit` / `mem_reservation` - Memory limits
-- `cpus` - CPU limits
-- `security_opt: no-new-privileges` - Privilege escalation prevention
-- `healthcheck` - Container health monitoring
-- `read_only` (where applicable) - Read-only root filesystem
+- Memory/CPU limits
+- `no-new-privileges` security option
+- Health checks
+- Read-only filesystem (where possible)
+- Non-root users
 
-## Documentation
+## Docs
 
 - [Server Setup](docs/01-server-setup.md)
 - [Docker Setup](docs/02-docker-setup.md)
@@ -144,15 +166,17 @@ All templates include:
 - [Security](docs/07-security.md)
 - [Troubleshooting](docs/troubleshooting.md)
 
-## Useful Aliases (after setup)
+## Aliases
+
+After setup, you get these shortcuts:
 
 ```bash
-dps          # docker ps (formatted)
-dcup         # docker compose up -d
-dcdown       # docker compose down
-dclogs       # docker compose logs -f
-dprune       # cleanup docker
-apps         # cd ~/apps
+dps       # docker ps (formatted)
+dcup      # docker compose up -d
+dcdown    # docker compose down
+dclogs    # docker compose logs -f
+dprune    # cleanup unused stuff
+apps      # cd ~/apps
 ```
 
 ## Contributing
