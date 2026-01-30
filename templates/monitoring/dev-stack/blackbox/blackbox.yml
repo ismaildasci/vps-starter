@@ -20,6 +20,14 @@ modules:
       headers:
         Content-Type: application/json
 
+  http_2xx_ssl:
+    prober: http
+    timeout: 10s
+    http:
+      valid_status_codes: [200, 201, 204, 301, 302]
+      fail_if_not_ssl: true
+      preferred_ip_protocol: "ip4"
+
   tcp_connect:
     prober: tcp
     timeout: 10s
