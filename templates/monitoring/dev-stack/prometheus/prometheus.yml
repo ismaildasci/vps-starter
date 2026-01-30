@@ -68,32 +68,43 @@ scrape_configs:
         labels:
           service: 'traefik'
 
+  # ============================================
+  # UPTIME & AVAILABILITY
+  # ============================================
+
   # Uptime Kuma - Status monitoring
   - job_name: 'uptime-kuma'
     static_configs:
       - targets: ['uptime-kuma:3001']
         labels:
           service: 'uptime-kuma'
+    metrics_path: /metrics
 
   # ============================================
-  # DATABASE EXPORTERS (optional)
+  # DATABASE EXPORTERS (Optional - uncomment if needed)
   # ============================================
 
-  # Uncomment if using postgres-exporter
+  # PostgreSQL Exporter
+  # Uncomment and configure DATA_SOURCE_NAME in .env
   # - job_name: 'postgres-exporter'
   #   static_configs:
   #     - targets: ['postgres-exporter:9187']
+  #       labels:
+  #         service: 'postgres-exporter'
 
-  # Uncomment if using redis-exporter
+  # Redis Exporter
+  # Uncomment and configure REDIS_ADDR in .env
   # - job_name: 'redis-exporter'
   #   static_configs:
   #     - targets: ['redis-exporter:9121']
+  #       labels:
+  #         service: 'redis-exporter'
 
   # ============================================
-  # BLACKBOX PROBING (optional)
+  # BLACKBOX PROBING (Optional)
   # ============================================
 
-  # HTTP Probe - Add your domains
+  # HTTP Probe - Add your domains to monitor
   # - job_name: 'blackbox-http'
   #   metrics_path: /probe
   #   params:
@@ -102,6 +113,9 @@ scrape_configs:
   #     - targets:
   #         - https://yourdomain.com
   #         - https://app.yourdomain.com
+  #         - https://api.yourdomain.com
+  #       labels:
+  #         probe_type: 'http'
   #   relabel_configs:
   #     - source_labels: [__address__]
   #       target_label: __param_target

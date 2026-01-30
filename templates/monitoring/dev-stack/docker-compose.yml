@@ -302,6 +302,7 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
       - DOCKER_HOST=unix:///var/run/docker.sock
+      - TRAEFIK_CONFIG=/traefik/dynamic.yml
       - WEBHOOK_PORT=5001
       - ALERTMANAGER_URL=http://alertmanager:9093
       - PROMETHEUS_URL=http://prometheus:9090
@@ -309,6 +310,7 @@ services:
       - TIMEZONE=${TIMEZONE:-UTC}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${TRAEFIK_CONFIG_PATH:-/home/deploy/traefik/dynamic.yml}:/traefik/dynamic.yml:rw
     networks:
       - monitoring
     mem_limit: 128m

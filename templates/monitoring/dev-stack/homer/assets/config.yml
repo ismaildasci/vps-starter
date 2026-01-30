@@ -38,6 +38,12 @@ colors:
     link: "#3273dc"
     link-hover: "#ffdd57"
 
+links:
+  - name: "GitHub"
+    icon: "fab fa-github"
+    url: "https://github.com/yourusername"
+    target: "_blank"
+
 services:
   - name: "Monitoring"
     icon: "fas fa-chart-line"
@@ -57,7 +63,13 @@ services:
       - name: "Uptime Kuma"
         logo: "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/uptime-kuma.png"
         subtitle: "Status Monitoring"
-        url: "https://uptime-dev.example.com"
+        url: "https://status.example.com"
+        target: "_blank"
+
+      - name: "Alertmanager"
+        logo: "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/alertmanager.png"
+        subtitle: "Alert Management"
+        url: "https://alerts-dev.example.com"
         target: "_blank"
 
   - name: "Infrastructure"
@@ -73,4 +85,34 @@ services:
         logo: "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/traefik.png"
         subtitle: "Reverse Proxy"
         url: "https://traefik-dev.example.com"
+        target: "_blank"
+
+  - name: "Applications"
+    icon: "fas fa-rocket"
+    items:
+      - name: "Main Website"
+        logo: "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/home-assistant.png"
+        subtitle: "Production Website"
+        url: "https://example.com"
+        target: "_blank"
+
+      - name: "API Service"
+        logo: "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/api.png"
+        subtitle: "Backend API"
+        url: "https://api.example.com"
+        target: "_blank"
+
+  - name: "Tools"
+    icon: "fas fa-tools"
+    items:
+      - name: "Vault"
+        logo: "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/vault.png"
+        subtitle: "Secret Management"
+        url: "https://vault.example.com"
+        target: "_blank"
+
+      - name: "Documentation"
+        logo: "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/gitbook.png"
+        subtitle: "Project Docs"
+        url: "https://docs.example.com"
         target: "_blank"
