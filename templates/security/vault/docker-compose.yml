@@ -1,0 +1,44 @@
+# HashiCorp Vault - Secret Management
+# Run standalone or integrate with dev-stack
+
+services:
+  vault:
+    image: hashicorp/vault:latest
+    container_name: vault
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+    environment:
+      - VAULT_ADDR=http://127.0.0.1:8200
+    volumes:
+      - ./config/vault.hcl:/vault/config/vault.hcl:ro
+      - vault_data:/vault/data
+      - ./policies:/vault/policies:ro
+    command: server -config=/vault/config/vault.hcl
+    ports:
+      - "8200:8200"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.vault.rule=Host(`${VAULT_DOMAIN:-vault.example.com}`)"
+      - "traefik.http.routers.vault.entrypoints=websecure"
+      - "traefik.http.routers.vault.tls=true"
+      - "traefik.http.routers.vault.middlewares=secure@file"
+      - "traefik.http.services.vault.loadbalancer.server.port=8200"
+    networks:
+      - web
+    mem_limit: 256m
+    mem_reservation: 128m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  vault_data:
+
+networks:
+  web:
+    external: true
