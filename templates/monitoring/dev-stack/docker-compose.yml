@@ -212,24 +212,47 @@ services:
       timeout: 10s
       retries: 3
 
-  promtail:
-    image: grafana/promtail:latest
-    container_name: promtail
+  # Grafana Alloy - Modern log collector (alternative to Promtail)
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
     restart: unless-stopped
-    command: -config.file=/etc/promtail/config.yml
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
     volumes:
-      - ./promtail/config.yml:/etc/promtail/config.yml:ro
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/log:/var/log:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ${TRAEFIK_LOGS_PATH:-/home/deploy/traefik/logs}:/traefik-logs:ro
+      - alloy_data:/var/lib/alloy/data
     networks:
       - monitoring
-    # Security Hardening
-    mem_limit: 128m
-    mem_reservation: 64m
-    cpus: 0.25
+    mem_limit: 256m
+    mem_reservation: 128m
+    cpus: 0.5
     security_opt:
       - no-new-privileges:true
+
+  # Promtail - Alternative log collector (use either Alloy OR Promtail, not both)
+  # promtail:
+  #   image: grafana/promtail:latest
+  #   container_name: promtail
+  #   restart: unless-stopped
+  #   command: -config.file=/etc/promtail/config.yml
+  #   volumes:
+  #     - ./promtail/config.yml:/etc/promtail/config.yml:ro
+  #     - /var/log:/var/log:ro
+  #     - /var/lib/docker/containers:/var/lib/docker/containers:ro
+  #     - ${TRAEFIK_LOGS_PATH:-/home/deploy/traefik/logs}:/traefik-logs:ro
+  #   networks:
+  #     - monitoring
+  #   mem_limit: 128m
+  #   mem_reservation: 64m
+  #   cpus: 0.25
+  #   security_opt:
+  #     - no-new-privileges:true
 
   # ============================================
   # ALERTING
@@ -323,12 +346,135 @@ services:
       timeout: 10s
       retries: 3
 
+  # ============================================
+  # UPTIME KUMA (Status Page & Monitoring)
+  # ============================================
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: uptime-kuma
+    restart: unless-stopped
+    volumes:
+      - uptime_kuma_data:/app/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.uptime.rule=Host(`${UPTIME_DOMAIN:-status.example.com}`)"
+      - "traefik.http.routers.uptime.entrypoints=websecure"
+      - "traefik.http.routers.uptime.tls=true"
+      - "traefik.http.routers.uptime.middlewares=secure@file"
+      - "traefik.http.services.uptime.loadbalancer.server.port=3001"
+    networks:
+      - web
+      - monitoring
+    mem_limit: 256m
+    mem_reservation: 128m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # MAINTENANCE PAGE
+  # ============================================
+  maintenance:
+    image: nginx:alpine
+    container_name: maintenance
+    restart: unless-stopped
+    volumes:
+      - ./maintenance/index.html:/usr/share/nginx/html/index.html:ro
+    labels:
+      - "traefik.enable=true"
+      # Activate by changing priority or enabling this router
+      - "traefik.http.routers.maintenance.rule=Host(`${MAINTENANCE_DOMAIN:-maintenance.example.com}`)"
+      - "traefik.http.routers.maintenance.entrypoints=websecure"
+      - "traefik.http.routers.maintenance.tls=true"
+      - "traefik.http.services.maintenance.loadbalancer.server.port=80"
+    networks:
+      - web
+    mem_limit: 32m
+    mem_reservation: 16m
+    cpus: 0.1
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # DATABASE EXPORTERS (Optional - uncomment if needed)
+  # ============================================
+  # PostgreSQL Exporter
+  # postgres-exporter:
+  #   image: prometheuscommunity/postgres-exporter:latest
+  #   container_name: postgres-exporter
+  #   restart: unless-stopped
+  #   environment:
+  #     - DATA_SOURCE_NAME=${POSTGRES_EXPORTER_DATASOURCE:-postgresql://user:pass@postgres:5432/db?sslmode=disable}
+  #   networks:
+  #     - monitoring
+  #   mem_limit: 64m
+  #   mem_reservation: 32m
+  #   cpus: 0.25
+  #   security_opt:
+  #     - no-new-privileges:true
+
+  # Redis Exporter
+  # redis-exporter:
+  #   image: oliver006/redis_exporter:latest
+  #   container_name: redis-exporter
+  #   restart: unless-stopped
+  #   environment:
+  #     - REDIS_ADDR=${REDIS_EXPORTER_ADDR:-redis://redis:6379}
+  #   networks:
+  #     - monitoring
+  #   mem_limit: 64m
+  #   mem_reservation: 32m
+  #   cpus: 0.25
+  #   security_opt:
+  #     - no-new-privileges:true
+
+  # ============================================
+  # VAULT (Secret Management - Optional)
+  # ============================================
+  # vault:
+  #   image: hashicorp/vault:latest
+  #   container_name: vault
+  #   restart: unless-stopped
+  #   cap_add:
+  #     - IPC_LOCK
+  #   environment:
+  #     - VAULT_ADDR=http://127.0.0.1:8200
+  #   volumes:
+  #     - ./vault/config/vault.hcl:/vault/config/vault.hcl:ro
+  #     - vault_data:/vault/data
+  #     - ./vault/policies:/vault/policies:ro
+  #   command: server -config=/vault/config/vault.hcl
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.vault.rule=Host(`${VAULT_DOMAIN:-vault.example.com}`)"
+  #     - "traefik.http.routers.vault.entrypoints=websecure"
+  #     - "traefik.http.routers.vault.tls=true"
+  #     - "traefik.http.routers.vault.middlewares=secure@file"
+  #     - "traefik.http.services.vault.loadbalancer.server.port=8200"
+  #   networks:
+  #     - web
+  #   mem_limit: 256m
+  #   mem_reservation: 128m
+  #   cpus: 0.5
+
 volumes:
   portainer_data:
   prometheus_data:
   grafana_data:
   loki_data:
   alertmanager_data:
+  alloy_data:
+  uptime_kuma_data:
+  # vault_data:  # Uncomment if using Vault
 
 networks:
   web:
