@@ -1,0 +1,42 @@
+# Ollama - Local LLM Runtime (CPU)
+# For GPU support, use docker-compose.gpu.yml
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS=${OLLAMA_ORIGINS:-*}
+      - OLLAMA_MODELS=${OLLAMA_MODELS:-/root/.ollama/models}
+    networks:
+      - web
+    # Resource limits (adjust based on your VPS)
+    mem_limit: ${OLLAMA_MEM_LIMIT:-4g}
+    mem_reservation: ${OLLAMA_MEM_RESERVATION:-2g}
+    cpus: ${OLLAMA_CPUS:-2}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "traefik.enable=${OLLAMA_TRAEFIK_ENABLE:-false}"
+      - "traefik.http.routers.ollama.rule=Host(`${OLLAMA_DOMAIN:-ollama.example.com}`)"
+      - "traefik.http.routers.ollama.entrypoints=websecure"
+      - "traefik.http.routers.ollama.tls=true"
+      - "traefik.http.routers.ollama.middlewares=secure@file"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
+
+volumes:
+  ollama_data:
+
+networks:
+  web:
+    external: true

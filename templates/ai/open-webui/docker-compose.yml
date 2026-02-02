@@ -1,0 +1,48 @@
+# Open WebUI - ChatGPT-like Interface for Ollama
+# Requires: Ollama running on the same network
+
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    volumes:
+      - open_webui_data:/app/backend/data
+    environment:
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-}
+      - WEBUI_AUTH=${WEBUI_AUTH:-true}
+      - ENABLE_SIGNUP=${ENABLE_SIGNUP:-false}
+      - DEFAULT_USER_ROLE=${DEFAULT_USER_ROLE:-user}
+      - ENABLE_OLLAMA_API=${ENABLE_OLLAMA_API:-true}
+      - ENABLE_OPENAI_API=${ENABLE_OPENAI_API:-false}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_API_BASE_URL=${OPENAI_API_BASE_URL:-}
+    networks:
+      - web
+    # Security Hardening
+    mem_limit: 512m
+    mem_reservation: 256m
+    cpus: 1
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.open-webui.rule=Host(`${WEBUI_DOMAIN:-chat.example.com}`)"
+      - "traefik.http.routers.open-webui.entrypoints=websecure"
+      - "traefik.http.routers.open-webui.tls=true"
+      - "traefik.http.routers.open-webui.middlewares=secure@file"
+      - "traefik.http.services.open-webui.loadbalancer.server.port=8080"
+
+volumes:
+  open_webui_data:
+
+networks:
+  web:
+    external: true

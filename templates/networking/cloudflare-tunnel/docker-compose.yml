@@ -1,0 +1,31 @@
+# Cloudflare Tunnel - Zero Trust Access
+# Expose services without opening ports or managing SSL
+
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - web
+    # Security Hardening
+    mem_limit: 128m
+    mem_reservation: 64m
+    cpus: 0.25
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    user: "65532:65532"
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  web:
+    external: true

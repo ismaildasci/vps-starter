@@ -108,6 +108,20 @@ Installs Docker, UFW, Fail2ban, swap, aliases. Creates `deploy` user with 2GB sw
 | Template | Purpose |
 |----------|---------|
 | CrowdSec | Modern IPS with Traefik bouncer |
+| Vault | Secret management (HashiCorp) |
+
+### Networking
+| Template | Purpose |
+|----------|---------|
+| Tailscale | Zero Trust mesh VPN |
+| Cloudflare Tunnel | Zero Trust access without open ports |
+
+### AI / LLM
+| Template | Purpose |
+|----------|---------|
+| Ollama | Local LLM runtime (CPU/GPU) |
+| Open WebUI | ChatGPT-like interface for Ollama |
+| n8n | AI workflow automation |
 
 ## Project Structure
 
@@ -129,7 +143,9 @@ Installs Docker, UFW, Fail2ban, swap, aliases. Creates `deploy` user with 2GB sw
 │   ├── backend/
 │   ├── databases/
 │   ├── monitoring/
-│   └── security/
+│   ├── security/
+│   ├── networking/
+│   └── ai/
 │
 └── docs/                # Guides
 ```
