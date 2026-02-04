@@ -79,6 +79,18 @@ http:
           httpTimeoutSeconds: 10
           crowdsecLapiScheme: http
 
+    # Authelia ForwardAuth Middleware (for SSO)
+    # Usage: Add "authelia@file" to router middlewares
+    authelia:
+      forwardAuth:
+        address: http://authelia:9091/api/verify?rd=https://auth.example.com
+        trustForwardHeader: true
+        authResponseHeaders:
+          - Remote-User
+          - Remote-Groups
+          - Remote-Name
+          - Remote-Email
+
     # Combined middleware chain - All security features
     secure:
       chain:
@@ -95,3 +107,12 @@ http:
           - rate-limit
           - compress
           - crowdsec
+
+    # Secure with Authelia SSO (use this for protected services)
+    secure-authelia:
+      chain:
+        middlewares:
+          - security-headers
+          - rate-limit
+          - compress
+          - authelia

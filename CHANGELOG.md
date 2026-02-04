@@ -1,5 +1,60 @@
 # Changelog
 
+## [1.2.0] - 2026-02-04
+
+### Security & Productivity Release
+
+#### Security (NEW)
+- **Authelia template**: Single Sign-On (SSO) and Multi-Factor Authentication
+  - TOTP and WebAuthn/Passkeys support
+  - Native Traefik ForwardAuth integration
+  - File-based or LDAP authentication backend
+  - Access control policies per domain
+  - Brute force protection
+  - Redis session storage
+- **Vaultwarden template**: Self-hosted Bitwarden-compatible password manager
+  - Works with all official Bitwarden clients
+  - Admin panel for user management
+  - WebSocket live sync support
+  - Organizations and sharing
+  - Send (secure file/text sharing)
+  - ~30MB RAM usage
+
+#### Backup (NEW)
+- **Restic template**: Encrypted, deduplicated backups
+  - Multiple backend support (S3, B2, local, SFTP)
+  - Automatic scheduling with Ofelia
+  - Docker volume backup
+  - Retention policy management
+  - ~50% less storage than plain backups
+
+#### DevOps (NEW)
+- **Gitea template**: Lightweight self-hosted Git server
+  - GitHub/GitLab alternative
+  - Gitea Actions (GitHub Actions compatible CI/CD)
+  - Package/Container registry
+  - OAuth/OIDC authentication
+  - Git LFS support
+  - ~100MB RAM usage
+
+#### Productivity (NEW)
+- **Stirling PDF template**: Self-hosted PDF manipulation
+  - 50+ PDF operations
+  - OCR support with multiple languages
+  - Privacy-first (no data leaves server)
+  - API for automation
+  - Convert, merge, split, compress, and more
+
+#### Traefik Enhancements
+- Added Authelia ForwardAuth middleware
+- New `secure-authelia` middleware chain for SSO-protected services
+
+#### Documentation
+- Updated README with new template sections
+- Added comprehensive READMEs for each new template
+
+---
+
 ## [1.1.0] - 2026-02-02
 
 ### Zero Trust & AI Release

@@ -1,0 +1,74 @@
+# Vaultwarden - Self-hosted Bitwarden Server
+# Compatible with official Bitwarden clients
+
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: unless-stopped
+    volumes:
+      - vaultwarden_data:/data
+    environment:
+      # Domain
+      - DOMAIN=${VAULTWARDEN_DOMAIN:-https://vault.example.com}
+      # Admin token (generate with: openssl rand -base64 48)
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-}
+      # Signups
+      - SIGNUPS_ALLOWED=${SIGNUPS_ALLOWED:-false}
+      - SIGNUPS_VERIFY=${SIGNUPS_VERIFY:-true}
+      - INVITATIONS_ALLOWED=${INVITATIONS_ALLOWED:-true}
+      # WebSocket support (for live sync)
+      - WEBSOCKET_ENABLED=true
+      # Security
+      - SENDS_ALLOWED=${SENDS_ALLOWED:-true}
+      - EMERGENCY_ACCESS_ALLOWED=${EMERGENCY_ACCESS_ALLOWED:-true}
+      - PASSWORD_HINTS_ALLOWED=${PASSWORD_HINTS_ALLOWED:-false}
+      - SHOW_PASSWORD_HINT=${SHOW_PASSWORD_HINT:-false}
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - EXTENDED_LOGGING=${EXTENDED_LOGGING:-true}
+      # SMTP (optional - for email verification and password hints)
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURITY=${SMTP_SECURITY:-starttls}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      # Timezone
+      - TZ=${TZ:-Europe/Istanbul}
+    networks:
+      - web
+    # Security Hardening
+    mem_limit: 256m
+    mem_reservation: 64m
+    cpus: 0.5
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/alive"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "traefik.enable=true"
+      # Main UI
+      - "traefik.http.routers.vaultwarden.rule=Host(`${VAULTWARDEN_HOST:-vault.example.com}`)"
+      - "traefik.http.routers.vaultwarden.entrypoints=websecure"
+      - "traefik.http.routers.vaultwarden.tls=true"
+      - "traefik.http.routers.vaultwarden.middlewares=secure@file"
+      - "traefik.http.routers.vaultwarden.service=vaultwarden"
+      - "traefik.http.services.vaultwarden.loadbalancer.server.port=80"
+      # WebSocket for live sync
+      - "traefik.http.routers.vaultwarden-ws.rule=Host(`${VAULTWARDEN_HOST:-vault.example.com}`) && Path(`/notifications/hub`)"
+      - "traefik.http.routers.vaultwarden-ws.entrypoints=websecure"
+      - "traefik.http.routers.vaultwarden-ws.tls=true"
+      - "traefik.http.routers.vaultwarden-ws.service=vaultwarden-ws"
+      - "traefik.http.services.vaultwarden-ws.loadbalancer.server.port=3012"
+
+volumes:
+  vaultwarden_data:
+
+networks:
+  web:
+    external: true

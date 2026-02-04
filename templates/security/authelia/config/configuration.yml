@@ -1,0 +1,121 @@
+# Authelia Configuration
+# Documentation: https://www.authelia.com/configuration/
+
+# Server settings
+server:
+  address: 'tcp://0.0.0.0:9091'
+
+# Logging
+log:
+  level: info
+  format: text
+
+# TOTP Configuration (2FA)
+totp:
+  disable: false
+  issuer: authelia.com
+  algorithm: sha1
+  digits: 6
+  period: 30
+  skew: 1
+
+# WebAuthn (Passkeys/Security Keys)
+webauthn:
+  disable: false
+  timeout: 60s
+  display_name: Authelia
+  attestation_conveyance_preference: indirect
+  user_verification: preferred
+
+# Theme
+theme: dark
+
+# Default redirection URL
+default_redirection_url: https://example.com
+
+# Default 2FA method
+default_2fa_method: totp
+
+# Authentication Backend - File based (simple)
+# For LDAP, see: https://www.authelia.com/configuration/first-factor/ldap/
+authentication_backend:
+  password_reset:
+    disable: false
+  file:
+    path: /config/users_database.yml
+    watch: true
+    password:
+      algorithm: argon2
+      argon2:
+        variant: argon2id
+        iterations: 3
+        memory: 65536
+        parallelism: 4
+        key_length: 32
+        salt_length: 16
+
+# Access Control Rules
+access_control:
+  default_policy: deny
+  rules:
+    # Public endpoints (no auth required)
+    - domain: public.example.com
+      policy: bypass
+
+    # API endpoints that need one-factor auth
+    - domain: api.example.com
+      policy: one_factor
+
+    # Admin/sensitive apps require 2FA
+    - domain:
+        - admin.example.com
+        - vault.example.com
+        - portainer.example.com
+      policy: two_factor
+
+    # Default: all other domains require at least one-factor
+    - domain: "*.example.com"
+      policy: one_factor
+
+# Session Configuration
+session:
+  name: authelia_session
+  same_site: lax
+  inactivity: 5m
+  expiration: 1h
+  remember_me: 1M
+  cookies:
+    - domain: example.com
+      authelia_url: https://auth.example.com
+      default_redirection_url: https://example.com
+  redis:
+    host: authelia-redis
+    port: 6379
+    database_index: 0
+
+# Regulation (brute force protection)
+regulation:
+  max_retries: 3
+  find_time: 2m
+  ban_time: 5m
+
+# Storage - Local SQLite
+storage:
+  local:
+    path: /data/db.sqlite3
+
+# Notifier - For password reset emails
+# Choose one: smtp or filesystem
+notifier:
+  # For testing - saves notifications to file
+  filesystem:
+    filename: /data/notifications.txt
+  # For production - enable SMTP
+  # smtp:
+  #   address: smtp://smtp.example.com:587
+  #   sender: "Authelia <authelia@example.com>"
+  #   subject: "[Authelia] {title}"
+  #   username: authelia@example.com
+  #   password: # Set via AUTHELIA_NOTIFIER_SMTP_PASSWORD env var
+  #   tls:
+  #     skip_verify: false

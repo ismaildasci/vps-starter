@@ -1,0 +1,127 @@
+# Gitea - Lightweight Self-hosted Git Server
+# GitHub/GitLab alternative with Actions support
+
+services:
+  gitea:
+    image: gitea/gitea:latest
+    container_name: gitea
+    restart: unless-stopped
+    volumes:
+      - gitea_data:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      # Database
+      - GITEA__database__DB_TYPE=${DB_TYPE:-postgres}
+      - GITEA__database__HOST=${DB_HOST:-gitea-postgres:5432}
+      - GITEA__database__NAME=${DB_NAME:-gitea}
+      - GITEA__database__USER=${DB_USER:-gitea}
+      - GITEA__database__PASSWD=${DB_PASSWORD:-changeme}
+      # Server
+      - GITEA__server__DOMAIN=${GITEA_DOMAIN:-git.example.com}
+      - GITEA__server__SSH_DOMAIN=${GITEA_DOMAIN:-git.example.com}
+      - GITEA__server__ROOT_URL=${GITEA_ROOT_URL:-https://git.example.com}
+      - GITEA__server__SSH_PORT=${SSH_PORT:-2222}
+      - GITEA__server__LFS_START_SERVER=true
+      # Security
+      - GITEA__security__INSTALL_LOCK=${INSTALL_LOCK:-false}
+      - GITEA__security__SECRET_KEY=${SECRET_KEY:-}
+      - GITEA__security__INTERNAL_TOKEN=${INTERNAL_TOKEN:-}
+      # Service
+      - GITEA__service__DISABLE_REGISTRATION=${DISABLE_REGISTRATION:-false}
+      - GITEA__service__REQUIRE_SIGNIN_VIEW=${REQUIRE_SIGNIN_VIEW:-false}
+      - GITEA__service__DEFAULT_KEEP_EMAIL_PRIVATE=true
+      # Mailer (optional)
+      - GITEA__mailer__ENABLED=${MAILER_ENABLED:-false}
+      - GITEA__mailer__SMTP_ADDR=${SMTP_ADDR:-}
+      - GITEA__mailer__SMTP_PORT=${SMTP_PORT:-587}
+      - GITEA__mailer__FROM=${SMTP_FROM:-}
+      - GITEA__mailer__USER=${SMTP_USER:-}
+      - GITEA__mailer__PASSWD=${SMTP_PASSWORD:-}
+      # Actions (CI/CD)
+      - GITEA__actions__ENABLED=${ACTIONS_ENABLED:-true}
+      # Package Registry
+      - GITEA__packages__ENABLED=${PACKAGES_ENABLED:-true}
+    ports:
+      # SSH port for git clone via SSH
+      - "${SSH_PORT:-2222}:22"
+    networks:
+      - web
+    depends_on:
+      gitea-postgres:
+        condition: service_healthy
+    # Security Hardening
+    mem_limit: 512m
+    mem_reservation: 256m
+    cpus: 1
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gitea.rule=Host(`${GITEA_DOMAIN:-git.example.com}`)"
+      - "traefik.http.routers.gitea.entrypoints=websecure"
+      - "traefik.http.routers.gitea.tls=true"
+      - "traefik.http.routers.gitea.middlewares=secure@file"
+      - "traefik.http.services.gitea.loadbalancer.server.port=3000"
+
+  gitea-postgres:
+    image: postgres:16-alpine
+    container_name: gitea-postgres
+    restart: unless-stopped
+    volumes:
+      - gitea_postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${DB_NAME:-gitea}
+      - POSTGRES_USER=${DB_USER:-gitea}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
+    networks:
+      - web
+    # Security Hardening
+    mem_limit: 256m
+    mem_reservation: 128m
+    cpus: 0.5
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-gitea}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Gitea Actions Runner (optional)
+  gitea-runner:
+    image: gitea/act_runner:latest
+    container_name: gitea-runner
+    restart: unless-stopped
+    volumes:
+      - gitea_runner_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - GITEA_INSTANCE_URL=${GITEA_ROOT_URL:-https://git.example.com}
+      - GITEA_RUNNER_REGISTRATION_TOKEN=${RUNNER_TOKEN:-}
+      - GITEA_RUNNER_NAME=${RUNNER_NAME:-docker-runner}
+    networks:
+      - web
+    depends_on:
+      - gitea
+    # Security Hardening
+    mem_limit: 512m
+    mem_reservation: 128m
+    cpus: 1
+    profiles:
+      - runner
+
+volumes:
+  gitea_data:
+  gitea_postgres_data:
+  gitea_runner_data:
+
+networks:
+  web:
+    external: true

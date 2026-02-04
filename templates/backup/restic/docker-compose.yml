@@ -1,0 +1,84 @@
+# Restic Backup - Automated Docker Volume Backups
+# Supports S3, B2, local, and many other backends
+
+services:
+  restic:
+    image: restic/restic:latest
+    container_name: restic
+    restart: "no"
+    volumes:
+      # Docker socket for container control
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Backup scripts
+      - ./scripts:/scripts:ro
+      # Local backup destination (if using local backend)
+      - ${LOCAL_BACKUP_PATH:-/home/deploy/backups}:/backups
+      # Docker volumes to backup (mount the parent directory)
+      - /var/lib/docker/volumes:/volumes:ro
+      # Restic cache
+      - restic_cache:/root/.cache/restic
+    environment:
+      # Restic repository location
+      # Local: /backups
+      # S3: s3:s3.amazonaws.com/bucket-name
+      # B2: b2:bucket-name:path
+      # REST: rest:http://user:pass@host:8000/
+      - RESTIC_REPOSITORY=${RESTIC_REPOSITORY:-/backups}
+      # Repository password (REQUIRED)
+      - RESTIC_PASSWORD=${RESTIC_PASSWORD}
+      # AWS credentials (for S3)
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      # B2 credentials
+      - B2_ACCOUNT_ID=${B2_ACCOUNT_ID:-}
+      - B2_ACCOUNT_KEY=${B2_ACCOUNT_KEY:-}
+      # Timezone
+      - TZ=${TZ:-Europe/Istanbul}
+    networks:
+      - web
+    # Security Hardening
+    mem_limit: 512m
+    mem_reservation: 128m
+    cpus: 1
+    security_opt:
+      - no-new-privileges:true
+    entrypoint: ["tail", "-f", "/dev/null"]
+    profiles:
+      - backup
+
+  # Scheduled backups using ofelia
+  scheduler:
+    image: mcuadros/ofelia:latest
+    container_name: restic-scheduler
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - TZ=${TZ:-Europe/Istanbul}
+    depends_on:
+      - restic
+    command: daemon --docker
+    labels:
+      # Daily backup at 3 AM
+      - "ofelia.job-exec.backup.schedule=0 3 * * *"
+      - "ofelia.job-exec.backup.container=restic"
+      - "ofelia.job-exec.backup.command=/scripts/backup.sh"
+      # Weekly cleanup on Sunday at 4 AM
+      - "ofelia.job-exec.cleanup.schedule=0 4 * * 0"
+      - "ofelia.job-exec.cleanup.container=restic"
+      - "ofelia.job-exec.cleanup.command=/scripts/cleanup.sh"
+    # Security Hardening
+    mem_limit: 64m
+    mem_reservation: 32m
+    cpus: 0.25
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - web
+
+volumes:
+  restic_cache:
+
+networks:
+  web:
+    external: true

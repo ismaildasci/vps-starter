@@ -107,6 +107,8 @@ Installs Docker, UFW, Fail2ban, swap, aliases. Creates `deploy` user with 2GB sw
 ### Security
 | Template | Purpose |
 |----------|---------|
+| Authelia | SSO and Multi-Factor Authentication |
+| Vaultwarden | Self-hosted Bitwarden password manager |
 | CrowdSec | Modern IPS with Traefik bouncer |
 | Vault | Secret management (HashiCorp) |
 
@@ -122,6 +124,21 @@ Installs Docker, UFW, Fail2ban, swap, aliases. Creates `deploy` user with 2GB sw
 | Ollama | Local LLM runtime (CPU/GPU) |
 | Open WebUI | ChatGPT-like interface for Ollama |
 | n8n | AI workflow automation |
+
+### Backup
+| Template | Purpose |
+|----------|---------|
+| Restic | Encrypted, deduplicated backups (S3/B2/local) |
+
+### DevOps
+| Template | Purpose |
+|----------|---------|
+| Gitea | Self-hosted Git server with CI/CD |
+
+### Productivity
+| Template | Purpose |
+|----------|---------|
+| Stirling PDF | Self-hosted PDF manipulation (50+ tools) |
 
 ## Project Structure
 
@@ -145,7 +162,10 @@ Installs Docker, UFW, Fail2ban, swap, aliases. Creates `deploy` user with 2GB sw
 │   ├── monitoring/
 │   ├── security/
 │   ├── networking/
-│   └── ai/
+│   ├── ai/
+│   ├── backup/
+│   ├── devops/
+│   └── productivity/
 │
 └── docs/                # Guides
 ```

@@ -1,0 +1,60 @@
+# Stirling PDF - Self-hosted PDF Manipulation Tool
+# 50+ PDF operations with OCR support
+
+services:
+  stirling-pdf:
+    image: frooodle/s-pdf:latest
+    container_name: stirling-pdf
+    restart: unless-stopped
+    volumes:
+      - stirling_data:/usr/share/tessdata
+      - stirling_configs:/configs
+      - stirling_logs:/logs
+    environment:
+      # Application settings
+      - DOCKER_ENABLE_SECURITY=${DOCKER_ENABLE_SECURITY:-false}
+      - SECURITY_ENABLE_LOGIN=${SECURITY_ENABLE_LOGIN:-false}
+      - SECURITY_INITIALLOGIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - SECURITY_INITIALLOGIN_PASSWORD=${ADMIN_PASSWORD:-}
+      # UI settings
+      - UI_APPNAME=${APP_NAME:-Stirling PDF}
+      - UI_HOMEDESCRIPTION=${HOME_DESCRIPTION:-Your self-hosted PDF tool}
+      - UI_APPNAMENAVBAR=${APP_NAME_NAVBAR:-Stirling PDF}
+      # System settings
+      - SYSTEM_DEFAULTLOCALE=${DEFAULT_LOCALE:-en-US}
+      - SYSTEM_GOOGLEVISIBILITY=${GOOGLE_VISIBILITY:-false}
+      - SYSTEM_SHOWUPDATE=${SHOW_UPDATE:-false}
+      # OCR settings (auto-downloads language packs)
+      - INSTALL_BOOK_AND_ADVANCED_HTML_OPS=true
+      # Timezone
+      - TZ=${TZ:-Europe/Istanbul}
+    networks:
+      - web
+    # Security Hardening
+    mem_limit: 1g
+    mem_reservation: 256m
+    cpus: 2
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/info/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.stirling-pdf.rule=Host(`${STIRLING_DOMAIN:-pdf.example.com}`)"
+      - "traefik.http.routers.stirling-pdf.entrypoints=websecure"
+      - "traefik.http.routers.stirling-pdf.tls=true"
+      - "traefik.http.routers.stirling-pdf.middlewares=secure@file"
+      - "traefik.http.services.stirling-pdf.loadbalancer.server.port=8080"
+
+volumes:
+  stirling_data:
+  stirling_configs:
+  stirling_logs:
+
+networks:
+  web:
+    external: true
