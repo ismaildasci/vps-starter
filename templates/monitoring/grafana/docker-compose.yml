@@ -3,22 +3,33 @@ services:
     image: grafana/grafana:latest
     container_name: grafana
     restart: unless-stopped
+    user: "472:472"
     environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
-      - GF_SERVER_ROOT_URL=https://grafana-dev.example.com
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:?GRAFANA_ADMIN_USER is required}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+      - GF_SERVER_ROOT_URL=https://${GRAFANA_DOMAIN:-grafana-dev.example.com}
     volumes:
       - grafana_data:/var/lib/grafana
     labels:
       - "traefik.enable=true"
-      # Router - değiştirin: grafana-dev.example.com -> grafana-dev.yourdomain.com
-      - "traefik.http.routers.grafana.rule=Host(`grafana-dev.example.com`)"
+      - "traefik.http.routers.grafana.rule=Host(`${GRAFANA_DOMAIN:-grafana-dev.example.com}`)"
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls=true"
-      # Service
+      - "traefik.http.routers.grafana.middlewares=secure@file"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
     networks:
       - web
+    # Security Hardening
+    mem_limit: 256m
+    mem_reservation: 128m
+    cpus: 0.5
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   grafana_data:

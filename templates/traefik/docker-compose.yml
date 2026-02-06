@@ -31,11 +31,11 @@ services:
       start_period: 10s
     labels:
       - "traefik.enable=true"
-      # Dashboard - değiştirin: traefik.example.com -> traefik-dev.yourdomain.com
-      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.example.com`)"
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`${TRAEFIK_DOMAIN:-traefik.example.com}`)"
       - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
       - "traefik.http.routers.traefik-dashboard.tls=true"
       - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      - "traefik.http.routers.traefik-dashboard.middlewares=basic-auth@file"
 
 networks:
   web:
